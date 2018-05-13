@@ -91,4 +91,4 @@ class PhysicalLayer:
             self.port = self.open_port(port_name)
             return None
         except serial.SerialException as e:
-            return 'Invalid port name'
+            return 'Такого номер порта не существует.'

@@ -13,7 +13,8 @@ if __name__ == "__main__":
     ap_layer = AppLayer(dl_layer)
 
     app = App(ap_layer)
-    app.geometry(newGeometry="%dx%d%+d%+d" % (900, 600, 300, 10))
+    app.geometry(newGeometry="%dx%d%+d%+d" % (1000, 900, 300, 10))
+    #app.geometry(newGeometry="%dx%d%+d%+d" % (900, 600, 300, 10))
     app.resizable(False, False)
     app.title('Курсовая работа по сетям: Злобина, Заровная, Кучаева')
     app.mainloop()

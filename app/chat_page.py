@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, filedialog
+from PIL import Image, ImageTk
 
 
 class ChatPage(tk.Frame):
@@ -7,20 +8,31 @@ class ChatPage(tk.Frame):
     MSG_LIMIT = 50
     # USER_A_NAME = 'YOU      '
     # USER_B_NAME = 'COLLEAGUE'
+    COLOR_BACK = '#FDF6F6'
+    COLOR_BUTTON = '#E9AFCE'
+    BUTTON_WIDTH = 20
+    BUTTON_HEIGHT = 2
+    BUTTON_FONT = 'arial 14'
+
 
     def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
+        tk.Frame.__init__(self, parent, background=self.COLOR_BACK)
         self.controller = controller
         self.msg_entry_str = tk.StringVar()
 
-        label = tk.Label(self, text='Содержание полученного файла', font=controller.title_font)
-        text = tk.Text(self, name='!text', height=35, width=100)
+        label = tk.Label(self, text='Содержимое получаемого файла', font=controller.title_font, background=self.COLOR_BACK)
+        text = tk.Text(self, name='!text', height=30, width=90)
         scrbar = tk.Scrollbar(self, command=text.yview)
         # entry = tk.Entry(self, textvariable=self.msg_entry_str)
         # msg_btn = tk.Button(self, text="Отправить сообщение", command=self.send_msg, name='!button')
-        file_btn = tk.Button(self, text="Отправить файл", command=self.send_file, name='!button2')
-        clean_btn = tk.Button(self, text="Очистить экран", name='!clean_btn')
-        pause_btn = tk.Button(self, text="Пауза", name='!pause_btn')
+        #self.img = Image.open("exit.png")
+        #eimg = ImageTk.PhotoImage(self.img)
+        file_btn = tk.Button(self, width=self.BUTTON_WIDTH, height=self.BUTTON_HEIGHT, font=self.BUTTON_FONT,
+                             text="Отправить файл", command=self.send_file, name='!button2', background=self.COLOR_BUTTON)
+        clean_btn = tk.Button(self, width=self.BUTTON_WIDTH, height=self.BUTTON_HEIGHT, font=self.BUTTON_FONT,
+                              text="Очистить экран", name='!clean_btn', background=self.COLOR_BUTTON)
+        pause_btn = tk.Button(self, width=self.BUTTON_WIDTH, height=self.BUTTON_HEIGHT, font=self.BUTTON_FONT,
+                              text="Пауза", name='!pause_btn', background=self.COLOR_BUTTON)
 
         label.grid(row=0, column=0, sticky='n', pady=2)
         text.grid(row=1, column=0, padx=10)
@@ -72,7 +84,7 @@ class ChatPage(tk.Frame):
             self.disable_buttons()
             self.controller.app_layer.send_file_propose(fname)
         except self.controller.app_layer.FailedSend as e:
-            messagebox.showwarning('Ошибка', "Не удалось отправить предложение об отправке файла.")
+            messagebox.showwarning('Ошибка', "Не удалось отправить запрос на передачу файла.")
             self.activate_buttons()
             return
 
@@ -83,7 +95,7 @@ class ChatPage(tk.Frame):
                 self.show_applayer_msg(sender, message)
                 self.activate_buttons()
         except self.controller.app_layer.FileNotAcknowledged as e:
-            messagebox.showinfo('Отправка файла', '{} отказался получать файл {}'.format(
+            messagebox.showinfo('Передача файла', '{} отказал в получении файла {}'.format(
                 self.USER_B_NAME, self.controller.app_layer.short_fname(e.message)))
             self.activate_buttons()
         except self.controller.app_layer.FileProposal as e:

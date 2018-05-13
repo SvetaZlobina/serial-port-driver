@@ -10,7 +10,7 @@ class App(tk.Tk):
         tk.Tk.__init__(self)
         self.app_layer = app_layer
 
-        self.title_font = tkfont.Font(family='Helvetica', size=18, weight="bold", slant="italic")
+        self.title_font = tkfont.Font(family='Arial', size=24, weight="bold")
 
         container = tk.Frame(self)
         container.pack(side="top", fill="both", expand=True)
@@ -26,7 +26,7 @@ class App(tk.Tk):
 
         self.frames["ChatPage"].disable_buttons()
 
-        menu_bar = tk.Menu(self)
+        menu_bar = tk.Menu(self, activebackground='#092900')
         menu_bar.add_command(label='Параметры порта', command=lambda: self.show_frame("ParametersPage"))
         menu_bar.add_command(label='Обмен файлами', command=lambda: self.show_frame("ChatPage"))
         # menu_bar.add_separator()
