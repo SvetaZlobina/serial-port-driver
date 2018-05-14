@@ -40,6 +40,8 @@ class AppLayer:
             return self.receive_file_proposal(bytes_str)
         elif msg_type == self.msg_types['FILE']:
             return self.receive_file(bytes_str)
+        elif msg_type == self.msg_types['FILE_END']:
+            return self.receive_file_completely(bytes_str)
         elif msg_type == self.msg_types['FILE_ACK'] or msg_type == self.msg_types['FILE_NAK']:
             return self.send_file(bytes_str)
         else:
@@ -121,7 +123,8 @@ class AppLayer:
 
         self._send_message(self.msg_types['FILE_END'], fname=self.short_fname(fname))
 
-        return '_Отправлен файл {}_'.format(self.short_fname(fname))
+        return_str = '### Файл {} успешно отправлен ###'.format(self.short_fname(fname))
+        return bytes(return_str, 'utf-8')
 
     def receive_file(self, bytes_str):
         """
@@ -131,7 +134,12 @@ class AppLayer:
         """
         self.status = 'Receiving file'
 
+        print('bytes before deroming:', bytes_str)
+
         fname, data = [self._deform_message(bytes_str)[x] for x in ['fname', 'data']]
+
+        print('fname after deforming:', fname)
+        print('data after deforming:', data)
         # print('data in receive_file:', data.decode('utf-8'))
         if os.path.exists(os.path.join(self.save_dir_name, fname)):
             with open(os.path.join(self.save_dir_name, fname), 'ab') as f:
@@ -141,8 +149,17 @@ class AppLayer:
                 f.write(data)
 
         self.status = 'Free'
-        # return '_Передан файл {}_'.format(fname)
         return data
+
+    def receive_file_completely(self, bytes_str):
+
+        self.status = 'Receiving file'
+
+        fname = self._deform_message(bytes_str)['fname']
+        self.status = 'Free'
+
+        return_str = '\n### Файл {} полностью принят и сохранён ###\n'.format(fname)
+        return bytes(return_str, 'utf-8')
 
     def set_connection(self, port_name):
         """
@@ -232,7 +249,7 @@ class AppLayer:
             fname_size, fname = parse(message[self.MSG_TYPE_LEN:], self.FNAME_SIZE_LEN)
             result['fname'] = fname
             result['data'] = parse(message[self.MSG_TYPE_LEN+fname_size:], self.DATA_SIZE_LEN, to_decode=False)[1]
-        elif msg_type in [self.msg_types[x] for x in ['FILE_PROPOSE', 'FILE_ACK', 'FILE_NAK']]:
+        elif msg_type in [self.msg_types[x] for x in ['FILE_PROPOSE', 'FILE_ACK', 'FILE_NAK', 'FILE_END']]:
             result['fname'] = parse(message[self.MSG_TYPE_LEN:], self.FNAME_SIZE_LEN)[1]
         elif msg_type == self.msg_types['MSG']:
             result['msg'] = parse(message[self.MSG_TYPE_LEN:], self.MSG_SIZE_LEN)[1]

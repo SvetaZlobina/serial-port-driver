@@ -3,7 +3,7 @@ from tkinter import messagebox, filedialog
 
 
 class ChatPage(tk.Frame):
-    RELOAD_RATE = 5000
+    RELOAD_RATE = 2000
     MSG_LIMIT = 50
 
     def __init__(self, parent, controller):
@@ -113,8 +113,8 @@ class ChatPage(tk.Frame):
         print('bytes to print: ', txt)
         try:
             text_field.insert(tk.INSERT,  '{}'.format(txt.decode('utf-8')))
-        except Exception:
-            print('Decoding exception')
+        except Exception as e:
+            print('Decoding exception:', e.args)
             pass
         text_field.config(state=tk.DISABLED)
 
