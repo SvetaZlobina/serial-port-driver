@@ -25,7 +25,6 @@ class PhysicalLayer:
     def __init__(self, port_name=None):
         self.port = self.open_port(port_name)
 
-
     def send_bytes(self, bytes_s):
         """
         Запись байтов строки bytes_s в порт
@@ -37,7 +36,7 @@ class PhysicalLayer:
                 new_byte = ''.join([str(int(bit) ^ (1-int(random.random() > p))) for bit in orig_byte])
                 new_bytes_s += int(new_byte, 2).to_bytes(1, 'big')
             return new_bytes_s
-        bytes_s = corrupt(bytes_s)
+        # bytes_s = corrupt(bytes_s)
 
         try:
             self.port.write(bytes_s)

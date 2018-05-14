@@ -17,6 +17,7 @@ class DataLinkLayer:
         'ACK':  b'\x98',  # положительная квитанция
         'NAK':  b'\xab',  # отрицательная квитанция
         'END':  b'\xb5',  # конец передачи
+        'PSE':  b'\x5c',  # подавление источника (пауза)
     }
     # MAX_FDATA_LEN = 256     # максимальное количество данных в кадре
     MAX_FDATA_LEN = 40      # при цикл. кодировании получится в 2 раза больше
@@ -78,6 +79,45 @@ class DataLinkLayer:
         return True
         #except self.ConnectionError:  # Can't send a message
             #return False
+
+    # def receive_msg_by_frame(self, timeout=None):
+    #
+    #     # frames = []
+    #
+    #     for n_try in range(self.MAX_TRIES_NUM):
+    #         try:
+    #             frame = None
+    #             if len(frames) == 0:  # пытаемся получить первый кадр
+    #                 frame = self._receive_frame(timeout=timeout)
+    #             else:
+    #                 frame = self._receive_frame(timeout=self.TIMEOUT_WAIT)
+    #             frame_type = self._deform_frame(frame)[0]  # если кадр можно расформировать - значит он не битый
+    #             print('got good frame at receive_msg')
+    #             print('_good frame is {}'.format(frame))
+    #             if frame_type in [self.frame_types['ACK'], self.frame_types['NAK']]:
+    #                 print("Getting ack and nak. But we don't suppose to")
+    #                 # пропускаем этот кадр, т.е. не отправляем ack и не добавляем его в сообщение
+    #                 break
+    #             self._send_ack()
+    #             break
+    #         except self.NoByteError as e:
+    #             # если просто интересовались, есть ли сообщение в канале
+    #             if len(frames) == 0 and n_try == 0 and timeout == self.TIMEOUT_LOOK:
+    #                 self.status = 'Free'
+    #                 return None
+    #             print('NoByteError in receive_msg')
+    #             self._send_nak()
+    #         except self.BrokenFrameError as e:
+    #             print('got broken frame in receive_msg')
+    #             print('_broken frame is {}\n_particular error is {}'.format(
+    #                 frame if frame else 'undefined', e.message))
+    #             self._send_nak()
+    #     else:
+    #         print('Cant receive a frame in receive_msg_by_frame')
+    #         self.status = 'Free'
+    #         return None
+    #     if self._deform_frame(frame)[0] not in [self.frame_types['ACK'], self.frame_types['NAK']]:
+    #         frames.append(frame)
 
     def receive_msg(self, first_frame=None, timeout=None):
         """
@@ -252,7 +292,7 @@ class DataLinkLayer:
         :return: кортеж ( тип_кадра, данные_в_кадре)
         """
         if len(frame) < 3:
-            raise cls.BrokenFrameError('To small frame: {}'.format(frame))
+            raise cls.BrokenFrameError('Too small frame: {}'.format(frame))
         f_type = frame[1:2]
         if f_type not in cls.frame_types.values():
             raise cls.BrokenFrameError('Unexpected f_type: {}'.format(frame))

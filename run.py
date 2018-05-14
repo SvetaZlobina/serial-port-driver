@@ -27,3 +27,16 @@ if __name__ == "__main__":
     # port1.write(b'Hello')
     # line = port2.read(5)
     # print(line)
+
+
+    # with open('example.txt', 'rb') as f:
+    #     for line in f:
+    #         print(line.decode('utf-8'))
+    # for i in range(len(data)//21 + 1):
+    #     print(data[i * 21:(i + 1) * 21])
+    #     print(data[i*21:(i+1)*21].decode('utf-8'))
+                # self._send_message(self.msg_types['FILE'], fname=self.short_fname(fname), data=data)
+    # except Exception as e:
+    #     print("Error trying to read file before sending.\n_Particular error is {}".format(e.args))
+    #     raise self.FailedSend(e.args)
+

@@ -5,6 +5,7 @@ import time
 class AppLayer:
     msg_types = {'FILE': b'f',
                  'MSG': b'm',
+                 'FILE_END': b'l',
                  'FILE_PROPOSE': b'p',
                  'FILE_ACK': b'a',
                  'FILE_NAK': b'n'}
@@ -15,18 +16,19 @@ class AppLayer:
 
     def __init__(self, datalink_layer):
         self.dl_layer = datalink_layer
+        self.save_dir_name = '.'
         self.status = 'Free'
 
     def check_received(self):
         """
         Проверка, было ли получено какое-либо сообщение на канальном уровне.
-        :return: кортеж (отправитель сообщения "А" или "В", само сообщениие в utf-8)
+        :return: само сообщениие в utf-8
         """
         if self.status != 'Free':
-            return None, None
+            return None
         bytes_str = self.dl_layer.check_received()
         if bytes_str is None:
-            return None, None
+            return None
 
         msg_type = self._deform_message(bytes_str)['msg_type']
         if msg_type not in self.msg_types.values():
@@ -61,12 +63,14 @@ class AppLayer:
         fname = self._deform_message(bytes_str)['fname']
         raise self.FileProposal(fname)
 
-    def send_file_ack(self, fname):
+    def send_file_ack(self, fname, save_dir_name):
         """
         Передача сообщения с согласием принять файл.
         :param fname: Абсолютное имя файла
+        :param save_dir_name: Имя папки для сохранения полученного файла
         :return:
         """
+        self.save_dir_name = save_dir_name
         self._send_message(self.msg_types['FILE_ACK'], fname=fname)
 
     def send_file_nak(self, fname):
@@ -75,6 +79,7 @@ class AppLayer:
         :param fname: Абсолютное имя файла
         :return:
         """
+
         self._send_message(self.msg_types['FILE_NAK'], fname=fname)
 
     def send_msg(self, msg):
@@ -94,26 +99,29 @@ class AppLayer:
         self.status = 'Receiving message'
         msg = self._deform_message(bytes_str)['msg']
         self.status = 'Free'
-        return 'B', msg
+        return msg
 
     def send_file(self, bytes_str):
         """
         Отправка файла через сеть.
         :param bytes_str: строка с согласием или отказом принять файл от другого пользователя
-        :return: кортеж (отправитель "А", сообщение об отправке файла)
+        :return: сообщение об отправке файла
         """
         msg_type, fname = [self._deform_message(bytes_str)[x] for x in ['msg_type', 'fname']]
         if msg_type == self.msg_types['FILE_NAK']:
             raise self.FileNotAcknowledged(fname)
         try:
             with open(fname, 'rb') as f:
-                data = f.read()
+                for line in f:
+                    print('line to send:', line.decode('utf-8'))
+                    self._send_message(self.msg_types['FILE'], fname=self.short_fname(fname), data=line)
         except Exception as e:
             print("Error trying to read file before sending.\n_Particular error is {}".format(e.args))
             raise self.FailedSend(e.args)
 
-        self._send_message(self.msg_types['FILE'], fname=self.short_fname(fname), data=data)
-        return 'A', '_Отправлен файл {}_'.format(self.short_fname(fname))
+        self._send_message(self.msg_types['FILE_END'], fname=self.short_fname(fname))
+
+        return '_Отправлен файл {}_'.format(self.short_fname(fname))
 
     def receive_file(self, bytes_str):
         """
@@ -124,12 +132,17 @@ class AppLayer:
         self.status = 'Receiving file'
 
         fname, data = [self._deform_message(bytes_str)[x] for x in ['fname', 'data']]
-        os.makedirs('../downloaded', exist_ok=True)
-        with open('../downloaded/'+fname, 'wb') as f:
-            f.write(data)
+        # print('data in receive_file:', data.decode('utf-8'))
+        if os.path.exists(os.path.join(self.save_dir_name, fname)):
+            with open(os.path.join(self.save_dir_name, fname), 'ab') as f:
+                f.write(data)
+        else:
+            with open(os.path.join(self.save_dir_name, fname), 'wb') as f:
+                f.write(data)
 
         self.status = 'Free'
-        return 'B', '_Передан файл {}_'.format(fname)
+        # return '_Передан файл {}_'.format(fname)
+        return data
 
     def set_connection(self, port_name):
         """
@@ -157,7 +170,11 @@ class AppLayer:
         :return:
         """
         self.status = 'Sending {}'.format(filter(lambda k: self.msg_types[k] == msg_type, self.msg_types))
+        if data:
+            print('data before forming:', data)
         bytes_str = self._form_message(msg_type, fname=fname, data=data)
+        print('bytes after forming:', bytes_str)
+        # print('bytes after forming decoded:', bytes_str.decode('utf-8'))
         try:
             self.dl_layer.send_msg(bytes_str)
         except ConnectionError as e:
@@ -184,7 +201,7 @@ class AppLayer:
 
         if msg_type == self.msg_types['FILE']:
             return msg_type + form(fname, self.FNAME_SIZE_LEN) + form(data, self.DATA_SIZE_LEN, to_encode=False)
-        elif msg_type in [self.msg_types[x] for x in ['FILE_PROPOSE', 'FILE_ACK', 'FILE_NAK']]:
+        elif msg_type in [self.msg_types[x] for x in ['FILE_PROPOSE', 'FILE_ACK', 'FILE_NAK', 'FILE_END']]:
             return msg_type + form(fname, self.FNAME_SIZE_LEN)
         elif msg_type == self.msg_types['MSG']:
             return msg_type + form(data, self.MSG_SIZE_LEN)
