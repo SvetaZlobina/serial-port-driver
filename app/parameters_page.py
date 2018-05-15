@@ -42,6 +42,7 @@ class ParametersPage(tk.Frame):
             self.status_string.set('Установлено соединение с портом {}'.format(self.port_name_string.get()))
             self.controller.frames["ChatPage"].activate_buttons()
             print('Установлено соединение с портом {}'.format(self.port_name_string.get()))
+            self.controller.frames['ChatPage'].tkraise()
         if res is not None:
             self.status_string.set(res)
             self.controller.frames["ChatPage"].disable_buttons()

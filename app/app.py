@@ -24,7 +24,7 @@ class App(tk.Tk):
             self.frames[page_name] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.frames["ChatPage"].disable_buttons()
+        self.frames["ChatPage"].disable_send()
 
         menu_bar = tk.Menu(self)
         menu_bar.add_command(label='Параметры порта', command=lambda: self.show_frame("ParametersPage"))

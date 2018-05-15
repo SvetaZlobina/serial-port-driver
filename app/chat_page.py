@@ -39,43 +39,12 @@ class ChatPage(tk.Frame):
 
         self.check_received()
 
-    # def init_text(self):
-    #     text = self.children['!text']
-    #     # text.insert(tk.INSERT, 'YOU      : Hello World\n')
-    #     # text.insert(tk.INSERT, 'COLLEAGUE: Hello you too\n')
-    #     text.config(state=tk.DISABLED)
-    #     # text.tag_configure('tag_left', justify='left')
-    #     # text.tag_configure('tag_right', justify='right')
-    #     sb = self.children['!scrollbar']
-    #     text['yscrollcommand'] = sb.set
-
-    # def send_msg(self):
-    #     msg = self.msg_entry_str.get()
-    #     if not msg:
-    #         return
-    #     self.disable_buttons()
-    #     if len(msg) > self.MSG_LIMIT:
-    #         messagebox.showwarning('Внимание!', 'Длина сообщения ({}) должна быть меньше {} символов'.format(
-    #             len(msg), self.MSG_LIMIT))
-    #         self.activate_buttons()
-    #         return
-    #     try:
-    #         self.controller.app_layer.send_msg(msg)
-    #     except self.controller.app_layer.FailedSend as e:
-    #         messagebox.showwarning('Ошибка', "Не удалось отправить сообщение.")
-    #         self.activate_buttons()
-    #         return
-    #     self.show_applayer_msg('A', msg)
-    #     self.msg_entry_str.set('')
-    #     self.activate_buttons()
-    #     return
-
     def send_file(self):
         fname = filedialog.askopenfilename(title='Файл для отправки')
         if not fname:
             return
         try:
-            self.disable_buttons()
+            self.disable_send()
             self.controller.app_layer.send_file_propose(fname)
         except self.controller.app_layer.FailedSend as e:
             messagebox.showwarning('Ошибка', "Не удалось отправить предложение об отправке файла.")
@@ -97,7 +66,7 @@ class ChatPage(tk.Frame):
             if messagebox.askyesno('Получение файла', 'Принять файл {}?'.format(
                     self.controller.app_layer.short_fname(fname))):
                 save_dir_name = filedialog.askdirectory(title='Выберите папку для сохранения файла')
-                self.disable_buttons()
+                self.disable_send()
                 self.controller.app_layer.send_file_ack(fname, save_dir_name)
             else:
                 self.controller.app_layer.send_file_nak(fname)
@@ -133,13 +102,16 @@ class ChatPage(tk.Frame):
             pause_btn.config(text='Пауза')
             self.controller.app_layer.resume_receiving_file()
 
-    def disable_buttons(self):
+    def disable_send(self):
         # self.children['!button'].config(state="disabled")
         self.children['!button2'].config(state="disabled")
 
     def activate_buttons(self):
         # self.children['!button'].config(state="active")
         self.children['!button2'].config(state="active")
+
+    # def disable_pause(self):
+    #     self.children['!clean_btn'].config(state="active")
 
     def clear_text(self):
         pass

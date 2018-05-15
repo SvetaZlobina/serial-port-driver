@@ -2,11 +2,6 @@ import re
 import time
 import logging
 
-# from .physical_layer import handler
-#
-# logger = logging.getLogger(__name__)
-# logger.addHandler(handler)
-
 
 class DataLinkLayer:
     FD = b'\x7e'  # Начало, конец кадра
@@ -23,7 +18,7 @@ class DataLinkLayer:
     # MAX_FDATA_LEN = 256     # максимальное количество данных в кадре
     MAX_FDATA_LEN = 40      # при цикл. кодировании получится в 2 раза больше
     # MAX_TRIES_NUM = 5       # максимальное количество попыток получения и передачи кадра
-    MAX_TRIES_NUM = 10       # максимальное количество попыток получения и передачи кадра
+    MAX_TRIES_NUM = 5       # максимальное количество попыток получения и передачи кадра
     TIMEOUT_WAIT = 10.0      # время на получение первого кадра сообщения, когда он нам очень нужен
     TIMEOUT_LOOK = 0.25      # время на получение первого кадра сообещния, когда сообщения может и не быть
 
