@@ -17,7 +17,8 @@ class DataLinkLayer:
         'ACK':  b'\x98',  # положительная квитанция
         'NAK':  b'\xab',  # отрицательная квитанция
         'END':  b'\xb5',  # конец передачи
-        'PSE':  b'\x5c',  # подавление источника (пауза)
+        'PSE':  b'\x5c',  # подавление источника (пауза - pause)
+        'RSM':  b'\xd3',  # восстановление передачи (продолжить - resume)
     }
     # MAX_FDATA_LEN = 256     # максимальное количество данных в кадре
     MAX_FDATA_LEN = 40      # при цикл. кодировании получится в 2 раза больше
@@ -28,6 +29,7 @@ class DataLinkLayer:
 
     def __init__(self, phys_layer):
         self.phys_layer = phys_layer
+        self.is_paused = False
         self.status = 'Free'
 
     def check_received(self):
@@ -46,6 +48,9 @@ class DataLinkLayer:
         msg = self.receive_msg(timeout=self.TIMEOUT_LOOK)
 
         self.status = 'Free'
+
+        if msg == b'':
+            return None
 
         return msg
 
@@ -131,7 +136,7 @@ class DataLinkLayer:
 
         frames = [first_frame] if first_frame else []
 
-        while len(frames) == 0 or self._deform_frame(frames[-1])[0] != self.frame_types['END']:
+        while len(frames) == 0 or self._deform_frame(frames[-1])[0] not in [self.frame_types['END'], self.frame_types['RSM']]:
             for n_try in range(self.MAX_TRIES_NUM):
                 try:
                     frame = None
@@ -142,10 +147,15 @@ class DataLinkLayer:
                     frame_type = self._deform_frame(frame)[0]  # если кадр можно расформировать - значит он не битый
                     print('got good frame at receive_msg')
                     print('_good frame is {}'.format(frame))
+                    if frame_type == self.frame_types['RSM']:
+                        print('received RSM frame')
+                        self.is_paused = False
                     if frame_type in [self.frame_types['ACK'], self.frame_types['NAK']]:
                         print("Getting ack and nak. But we don't suppose to")
                         # пропускаем этот кадр, т.е. не отправляем ack и не добавляем его в сообщение
                         break
+                    if self.is_paused:
+                        self.send_pse()  # говорим источнику о том, что нужно приостановить передачу
                     self._send_ack()
                     break
                 except self.NoByteError as e:
@@ -198,6 +208,10 @@ class DataLinkLayer:
                     print('waiting for ack')
                     ack_frame = self._receive_frame()
                     frame_type = self._deform_frame(ack_frame)[0]
+                    if frame_type == self.frame_types['PSE']:  # поняли, что получатель запросил паузу в передаче
+                        self.is_paused = True
+                        ack_frame = self._receive_frame()
+                        frame_type = self._deform_frame(ack_frame)[0]
                     if frame_type == self.frame_types['ACK']:
                         print('got ack')
                         break
@@ -266,6 +280,16 @@ class DataLinkLayer:
         """
         print('sending nak')
         self.phys_layer.send_bytes(self._form_frame(self.frame_types['NAK']))
+
+    def send_pse(self):
+
+        print('sending pse')
+        self.phys_layer.send_bytes(self._form_frame(self.frame_types['PSE']))
+
+    def send_rsm(self):
+
+        print('sending rsm')
+        self.phys_layer.send_bytes(self._form_frame(self.frame_types['RSM']))
 
     @classmethod
     def _form_frame(cls, f_type, data=None):

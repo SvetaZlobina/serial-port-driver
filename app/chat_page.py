@@ -18,7 +18,7 @@ class ChatPage(tk.Frame):
         # msg_btn = tk.Button(self, text="Отправить сообщение", command=self.send_msg, name='!button')
         file_btn = tk.Button(self, text="Отправить файл", command=self.send_file, name='!button2')
         clean_btn = tk.Button(self, text="Очистить экран", name='!clean_btn')
-        pause_btn = tk.Button(self, text="Пауза", name='!pause_btn')
+        pause_btn = tk.Button(self, text="Пауза", command=self.make_pause, name='!pause_btn')
 
         label.grid(row=0, column=0, sticky='n', pady=2)
         text.grid(row=1, column=0, padx=10)
@@ -102,8 +102,6 @@ class ChatPage(tk.Frame):
         self.after(self.RELOAD_RATE, self.check_received)
 
     def show_msg(self, msg):
-        # sender_mapping = {'A': self.USER_A_NAME, 'B': self.USER_B_NAME}
-        # sender = sender_mapping[sender]
         if msg:
             self.print_msg(msg)
 
@@ -113,10 +111,19 @@ class ChatPage(tk.Frame):
         print('bytes to print: ', txt)
         try:
             text_field.insert(tk.INSERT,  '{}'.format(txt.decode('utf-8')))
-        except Exception as e:
+        except Exception as e:  # если вдруг случилась какая-то ошибка с декодированием
             print('Decoding exception:', e.args)
             pass
         text_field.config(state=tk.DISABLED)
+
+    def make_pause(self):
+        pause_btn = self.children['!pause_btn']
+        if pause_btn['text'] == 'Пауза':  # если передача сообщения активна
+            pause_btn.config(text='Продолжить')
+            self.controller.app_layer.pause_receiving_file()
+        else:  # если была пауза в передаче
+            pause_btn.config(text='Пауза')
+            self.controller.app_layer.resume_receiving_file()
 
     def disable_buttons(self):
         # self.children['!button'].config(state="disabled")

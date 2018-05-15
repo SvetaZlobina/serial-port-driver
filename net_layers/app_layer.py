@@ -115,6 +115,12 @@ class AppLayer:
         try:
             with open(fname, 'rb') as f:
                 for line in f:
+                    if self.dl_layer.is_paused:
+                        # curr_position = f.tell()
+                        while self.dl_layer.is_paused:
+                            print('sending is paused')
+                            msg  = self.dl_layer.check_received()
+                            time.sleep(1)
                     print('line to send:', line.decode('utf-8'))
                     self._send_message(self.msg_types['FILE'], fname=self.short_fname(fname), data=line)
         except Exception as e:
@@ -125,6 +131,15 @@ class AppLayer:
 
         return_str = '### Файл {} успешно отправлен ###'.format(self.short_fname(fname))
         return bytes(return_str, 'utf-8')
+
+    def pause_receiving_file(self):
+
+        self.dl_layer.is_paused = True
+
+    def resume_receiving_file(self):
+
+        self.dl_layer.is_paused = False
+        self.dl_layer.send_rsm()
 
     def receive_file(self, bytes_str):
         """
@@ -254,6 +269,7 @@ class AppLayer:
         elif msg_type == self.msg_types['MSG']:
             result['msg'] = parse(message[self.MSG_TYPE_LEN:], self.MSG_SIZE_LEN)[1]
         else:
+
             raise ValueError('Unknown message type at app_layer.deform_message - {}\n'
                              'message is {}'.format(msg_type, message))
         return result
