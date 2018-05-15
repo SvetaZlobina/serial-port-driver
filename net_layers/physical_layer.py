@@ -3,19 +3,19 @@ import random
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# create a file handler
-# handler = logging.FileHandler('run.log')
-handler = logging.FileHandler('run1.log')
-handler.setLevel(logging.WARNING)
-
-# create a logging format
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-
-# add the handlers to the logger
-logger.addHandler(handler)
+# logger.setLevel(logging.INFO)
+#
+# # create a file handler
+# # handler = logging.FileHandler('run.log')
+# handler = logging.FileHandler('run1.log')
+# handler.setLevel(logging.WARNING)
+#
+# # create a logging format
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# handler.setFormatter(formatter)
+#
+# # add the handlers to the logger
+# logger.addHandler(handler)
 
 
 class PhysicalLayer:
@@ -24,7 +24,6 @@ class PhysicalLayer:
 
     def __init__(self, port_name=None):
         self.port = self.open_port(port_name)
-
 
     def send_bytes(self, bytes_s):
         """
@@ -37,7 +36,7 @@ class PhysicalLayer:
                 new_byte = ''.join([str(int(bit) ^ (1-int(random.random() > p))) for bit in orig_byte])
                 new_bytes_s += int(new_byte, 2).to_bytes(1, 'big')
             return new_bytes_s
-        bytes_s = corrupt(bytes_s)
+        # bytes_s = corrupt(bytes_s)
 
         try:
             self.port.write(bytes_s)

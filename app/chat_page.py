@@ -3,10 +3,8 @@ from tkinter import messagebox, filedialog
 
 
 class ChatPage(tk.Frame):
-    RELOAD_RATE = 5000
+    RELOAD_RATE = 2000
     MSG_LIMIT = 50
-    # USER_A_NAME = 'YOU      '
-    # USER_B_NAME = 'COLLEAGUE'
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
@@ -20,7 +18,7 @@ class ChatPage(tk.Frame):
         # msg_btn = tk.Button(self, text="Отправить сообщение", command=self.send_msg, name='!button')
         file_btn = tk.Button(self, text="Отправить файл", command=self.send_file, name='!button2')
         clean_btn = tk.Button(self, text="Очистить экран", name='!clean_btn')
-        pause_btn = tk.Button(self, text="Пауза", name='!pause_btn')
+        pause_btn = tk.Button(self, text="Пауза", command=self.make_pause, name='!pause_btn')
 
         label.grid(row=0, column=0, sticky='n', pady=2)
         text.grid(row=1, column=0, padx=10)
@@ -78,13 +76,13 @@ class ChatPage(tk.Frame):
 
     def check_received(self):
         try:
-            sender, message = self.controller.app_layer.check_received()
+            message = self.controller.app_layer.check_received()
             if message:
-                self.show_applayer_msg(sender, message)
+                self.show_msg(message)
                 self.activate_buttons()
         except self.controller.app_layer.FileNotAcknowledged as e:
-            messagebox.showinfo('Отправка файла', '{} отказался получать файл {}'.format(
-                self.USER_B_NAME, self.controller.app_layer.short_fname(e.message)))
+            messagebox.showinfo('Отправка файла', 'В принятии файла {} отказано'
+                                .format(self.controller.app_layer.short_fname(e.message)))
             self.activate_buttons()
         except self.controller.app_layer.FileProposal as e:
             fname = e.message
@@ -92,7 +90,7 @@ class ChatPage(tk.Frame):
                     self.controller.app_layer.short_fname(fname))):
                 save_dir_name = filedialog.askdirectory(title='Выберите папку для сохранения файла')
                 self.disable_buttons()
-                self.controller.app_layer.send_file_ack(fname)
+                self.controller.app_layer.send_file_ack(fname, save_dir_name)
             else:
                 self.controller.app_layer.send_file_nak(fname)
                 messagebox.showinfo('Получение файла', "Вы отказались принять файл {}".format(
@@ -103,17 +101,29 @@ class ChatPage(tk.Frame):
             self.activate_buttons()
         self.after(self.RELOAD_RATE, self.check_received)
 
-    def show_applayer_msg(self, sender, msg):
-        sender_mapping = {'A': self.USER_A_NAME, 'B': self.USER_B_NAME}
-        sender = sender_mapping[sender]
+    def show_msg(self, msg):
         if msg:
-            self.print_msg(sender, msg)
+            self.print_msg(msg)
 
-    def print_msg(self, sender, txt):
+    def print_msg(self, txt):
         text_field = self.children['!text']
         text_field.config(state=tk.NORMAL)
-        text_field.insert(tk.INSERT,  '{}: {}\n'.format(sender, txt))
+        print('bytes to print: ', txt)
+        try:
+            text_field.insert(tk.INSERT,  '{}'.format(txt.decode('utf-8')))
+        except Exception as e:  # если вдруг случилась какая-то ошибка с декодированием
+            print('Decoding exception:', e.args)
+            pass
         text_field.config(state=tk.DISABLED)
+
+    def make_pause(self):
+        pause_btn = self.children['!pause_btn']
+        if pause_btn['text'] == 'Пауза':  # если передача сообщения активна
+            pause_btn.config(text='Продолжить')
+            self.controller.app_layer.pause_receiving_file()
+        else:  # если была пауза в передаче
+            pause_btn.config(text='Пауза')
+            self.controller.app_layer.resume_receiving_file()
 
     def disable_buttons(self):
         # self.children['!button'].config(state="disabled")

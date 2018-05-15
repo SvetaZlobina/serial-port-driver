@@ -2,10 +2,10 @@ import re
 import time
 import logging
 
-from .physical_layer import handler
-
-logger = logging.getLogger(__name__)
-logger.addHandler(handler)
+# from .physical_layer import handler
+#
+# logger = logging.getLogger(__name__)
+# logger.addHandler(handler)
 
 
 class DataLinkLayer:
@@ -17,16 +17,19 @@ class DataLinkLayer:
         'ACK':  b'\x98',  # положительная квитанция
         'NAK':  b'\xab',  # отрицательная квитанция
         'END':  b'\xb5',  # конец передачи
+        'PSE':  b'\x5c',  # подавление источника (пауза - pause)
+        'RSM':  b'\xd3',  # восстановление передачи (продолжить - resume)
     }
     # MAX_FDATA_LEN = 256     # максимальное количество данных в кадре
     MAX_FDATA_LEN = 40      # при цикл. кодировании получится в 2 раза больше
     # MAX_TRIES_NUM = 5       # максимальное количество попыток получения и передачи кадра
     MAX_TRIES_NUM = 10       # максимальное количество попыток получения и передачи кадра
-    TIMEOUT_WAIT = 5.0      # время на получение первого кадра сообщения, когда он нам очень нужен
+    TIMEOUT_WAIT = 10.0      # время на получение первого кадра сообщения, когда он нам очень нужен
     TIMEOUT_LOOK = 0.25      # время на получение первого кадра сообещния, когда сообщения может и не быть
 
     def __init__(self, phys_layer):
         self.phys_layer = phys_layer
+        self.is_paused = False
         self.status = 'Free'
 
     def check_received(self):
@@ -45,6 +48,9 @@ class DataLinkLayer:
         msg = self.receive_msg(timeout=self.TIMEOUT_LOOK)
 
         self.status = 'Free'
+
+        if msg == b'':
+            return None
 
         return msg
 
@@ -79,6 +85,45 @@ class DataLinkLayer:
         #except self.ConnectionError:  # Can't send a message
             #return False
 
+    # def receive_msg_by_frame(self, timeout=None):
+    #
+    #     # frames = []
+    #
+    #     for n_try in range(self.MAX_TRIES_NUM):
+    #         try:
+    #             frame = None
+    #             if len(frames) == 0:  # пытаемся получить первый кадр
+    #                 frame = self._receive_frame(timeout=timeout)
+    #             else:
+    #                 frame = self._receive_frame(timeout=self.TIMEOUT_WAIT)
+    #             frame_type = self._deform_frame(frame)[0]  # если кадр можно расформировать - значит он не битый
+    #             print('got good frame at receive_msg')
+    #             print('_good frame is {}'.format(frame))
+    #             if frame_type in [self.frame_types['ACK'], self.frame_types['NAK']]:
+    #                 print("Getting ack and nak. But we don't suppose to")
+    #                 # пропускаем этот кадр, т.е. не отправляем ack и не добавляем его в сообщение
+    #                 break
+    #             self._send_ack()
+    #             break
+    #         except self.NoByteError as e:
+    #             # если просто интересовались, есть ли сообщение в канале
+    #             if len(frames) == 0 and n_try == 0 and timeout == self.TIMEOUT_LOOK:
+    #                 self.status = 'Free'
+    #                 return None
+    #             print('NoByteError in receive_msg')
+    #             self._send_nak()
+    #         except self.BrokenFrameError as e:
+    #             print('got broken frame in receive_msg')
+    #             print('_broken frame is {}\n_particular error is {}'.format(
+    #                 frame if frame else 'undefined', e.message))
+    #             self._send_nak()
+    #     else:
+    #         print('Cant receive a frame in receive_msg_by_frame')
+    #         self.status = 'Free'
+    #         return None
+    #     if self._deform_frame(frame)[0] not in [self.frame_types['ACK'], self.frame_types['NAK']]:
+    #         frames.append(frame)
+
     def receive_msg(self, first_frame=None, timeout=None):
         """
         Запрос сообщения из канала.
@@ -91,7 +136,7 @@ class DataLinkLayer:
 
         frames = [first_frame] if first_frame else []
 
-        while len(frames) == 0 or self._deform_frame(frames[-1])[0] != self.frame_types['END']:
+        while len(frames) == 0 or self._deform_frame(frames[-1])[0] not in [self.frame_types['END'], self.frame_types['RSM']]:
             for n_try in range(self.MAX_TRIES_NUM):
                 try:
                     frame = None
@@ -102,10 +147,15 @@ class DataLinkLayer:
                     frame_type = self._deform_frame(frame)[0]  # если кадр можно расформировать - значит он не битый
                     print('got good frame at receive_msg')
                     print('_good frame is {}'.format(frame))
+                    if frame_type == self.frame_types['RSM']:
+                        print('received RSM frame')
+                        self.is_paused = False
                     if frame_type in [self.frame_types['ACK'], self.frame_types['NAK']]:
                         print("Getting ack and nak. But we don't suppose to")
                         # пропускаем этот кадр, т.е. не отправляем ack и не добавляем его в сообщение
                         break
+                    if self.is_paused:
+                        self.send_pse()  # говорим источнику о том, что нужно приостановить передачу
                     self._send_ack()
                     break
                 except self.NoByteError as e:
@@ -158,6 +208,10 @@ class DataLinkLayer:
                     print('waiting for ack')
                     ack_frame = self._receive_frame()
                     frame_type = self._deform_frame(ack_frame)[0]
+                    if frame_type == self.frame_types['PSE']:  # поняли, что получатель запросил паузу в передаче
+                        self.is_paused = True
+                        ack_frame = self._receive_frame()
+                        frame_type = self._deform_frame(ack_frame)[0]
                     if frame_type == self.frame_types['ACK']:
                         print('got ack')
                         break
@@ -227,6 +281,16 @@ class DataLinkLayer:
         print('sending nak')
         self.phys_layer.send_bytes(self._form_frame(self.frame_types['NAK']))
 
+    def send_pse(self):
+
+        print('sending pse')
+        self.phys_layer.send_bytes(self._form_frame(self.frame_types['PSE']))
+
+    def send_rsm(self):
+
+        print('sending rsm')
+        self.phys_layer.send_bytes(self._form_frame(self.frame_types['RSM']))
+
     @classmethod
     def _form_frame(cls, f_type, data=None):
         """
@@ -252,7 +316,7 @@ class DataLinkLayer:
         :return: кортеж ( тип_кадра, данные_в_кадре)
         """
         if len(frame) < 3:
-            raise cls.BrokenFrameError('To small frame: {}'.format(frame))
+            raise cls.BrokenFrameError('Too small frame: {}'.format(frame))
         f_type = frame[1:2]
         if f_type not in cls.frame_types.values():
             raise cls.BrokenFrameError('Unexpected f_type: {}'.format(frame))
