@@ -2,20 +2,27 @@ import tkinter as tk
 
 
 class ParametersPage(tk.Frame):
+    COLOR_BACK = '#e1b4d3'
+    COLOR_BUTTON = '#ba7ea7'
+    BUTTON_WIDTH = 25
+    BUTTON_HEIGHT = 2
+
     def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
+        tk.Frame.__init__(self, parent, background=self.COLOR_BACK)
         self.controller = controller
-        label = tk.Label(self, text="Параметры соединения", font=controller.title_font)
+        label = tk.Label(self, text="Параметры соединения", font=controller.title_font, background=self.COLOR_BACK)
         label.pack(side="top", fill="x", pady=10)
 
         self.port_name_string = tk.StringVar()
         self.port_name_string.set('')
         self.status_string = tk.StringVar()
 
-        l1 = tk.Label(self, text="Название порта")
-        w1 = tk.Entry(self, textvariable=self.port_name_string)
-        b1 = tk.Button(self, text='Подключиться', command=self.set_connection)
-        l2 = tk.Label(self, text="Состояние: введите название порта", textvariable=self.status_string)
+        l1 = tk.Label(self, text="Подключаемый порт", font='arial 12', background=self.COLOR_BACK)
+        w1 = tk.Entry(self, bd=5, width=45, textvariable=self.port_name_string)
+        l3 = tk.Label(self, background=self.COLOR_BACK)
+        b1 = tk.Button(self, text='Подключение', bg=self.COLOR_BUTTON,
+                       width=self.BUTTON_WIDTH, height=self.BUTTON_HEIGHT, font='arial 18', command=self.set_connection)
+        l2 = tk.Label(self, text="Состояние: введите название порта", textvariable=self.status_string, background=self.COLOR_BACK)
 
         '''for elem, coord in [(label,    (0, 0)),
                             (l1,     (1, 0)),
@@ -24,6 +31,7 @@ class ParametersPage(tk.Frame):
             elem.grid(row=coord[0], column=coord[1], sticky="nsew", padx=2, pady=2)'''
         l1.pack()
         w1.pack()
+        l3.pack()
         b1.pack()
         l2.pack()
 

@@ -5,20 +5,28 @@ from tkinter import messagebox, filedialog
 class ChatPage(tk.Frame):
     RELOAD_RATE = 2000
     MSG_LIMIT = 50
+    COLOR_BACK = '#e1b4d3'
+    COLOR_BUTTON = '#ba7ea7'
+    BUTTON_WIDTH = 20
+    BUTTON_HEIGHT = 2
+    BUTTON_FONT = 'arial 14'
 
     def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
+        tk.Frame.__init__(self, parent, background=self.COLOR_BACK)
         self.controller = controller
         self.msg_entry_str = tk.StringVar()
 
-        label = tk.Label(self, text='Содержание полученного файла', font=controller.title_font)
-        text = tk.Text(self, name='!text', height=35, width=100)
+        label = tk.Label(self, text='Содержимое получаемого файла',background=self.COLOR_BACK, font=controller.title_font)
+        text = tk.Text(self, name='!text', height=35, width=85)
         scrbar = tk.Scrollbar(self, command=text.yview)
         # entry = tk.Entry(self, textvariable=self.msg_entry_str)
         # msg_btn = tk.Button(self, text="Отправить сообщение", command=self.send_msg, name='!button')
-        file_btn = tk.Button(self, text="Отправить файл", command=self.send_file, name='!button2')
-        clean_btn = tk.Button(self, text="Очистить экран", name='!clean_btn')
-        pause_btn = tk.Button(self, text="Пауза", command=self.make_pause, name='!pause_btn')
+        file_btn = tk.Button(self, text="Отправить файл", width=self.BUTTON_WIDTH, height=self.BUTTON_HEIGHT,
+                             font=self.BUTTON_FONT,  background=self.COLOR_BUTTON, command=self.send_file, name='!button2')
+        clean_btn = tk.Button(self, text="Очистить экран", width=self.BUTTON_WIDTH, height=self.BUTTON_HEIGHT,  background=self.COLOR_BUTTON,
+                              font=self.BUTTON_FONT, command=self.clear_text, name='!clean_btn')
+        pause_btn = tk.Button(self, text="Пауза", width=self.BUTTON_WIDTH, height=self.BUTTON_HEIGHT, background=self.COLOR_BUTTON,
+                              font=self.BUTTON_FONT, command=self.make_pause, name='!pause_btn')
 
         label.grid(row=0, column=0, sticky='n', pady=2)
         text.grid(row=1, column=0, padx=10)
@@ -118,7 +126,7 @@ class ChatPage(tk.Frame):
 
     def make_pause(self):
         pause_btn = self.children['!pause_btn']
-        if pause_btn['text'] == 'Пауза':  # если передача сообщения активна
+        if pause_btn['text'] == 'Пауза':  # если передач а сообщения активна
             pause_btn.config(text='Продолжить')
             self.controller.app_layer.pause_receiving_file()
         else:  # если была пауза в передаче
@@ -132,3 +140,12 @@ class ChatPage(tk.Frame):
     def activate_buttons(self):
         # self.children['!button'].config(state="active")
         self.children['!button2'].config(state="active")
+
+    def clear_text(self):
+        pass
+        text_field = self.children['!text']
+        text_field.config(state=tk.NORMAL)
+        text_field.delete('1.0', tk.END)
+        text_field.config(state=tk.DISABLED)
+
+

@@ -17,6 +17,7 @@ class AppLayer:
     def __init__(self, datalink_layer):
         self.dl_layer = datalink_layer
         self.save_dir_name = '.'
+        self.text_buffer = ''
         self.status = 'Free'
 
     def check_received(self):
@@ -133,10 +134,18 @@ class AppLayer:
         return bytes(return_str, 'utf-8')
 
     def pause_receiving_file(self):
+        '''
+        Приостановка получения файла
+        :return:
+        '''
 
         self.dl_layer.is_paused = True
 
     def resume_receiving_file(self):
+        '''
+        Продолжение получения файла
+        :return:
+        '''
 
         self.dl_layer.is_paused = False
         self.dl_layer.send_rsm()
@@ -164,9 +173,24 @@ class AppLayer:
                 f.write(data)
 
         self.status = 'Free'
-        return data
+
+        if self.dl_layer.is_paused:
+            self.text_buffer = data
+            return None
+        else:
+            if self.text_buffer != '':
+                data = self.text_buffer + data
+                self.text_buffer = ''
+                return data
+            else:
+                return data
 
     def receive_file_completely(self, bytes_str):
+        '''
+        Получение сообщения о конце файла
+        :param bytes_str:
+        :return:
+        '''
 
         self.status = 'Receiving file'
 

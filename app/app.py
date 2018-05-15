@@ -10,7 +10,7 @@ class App(tk.Tk):
         tk.Tk.__init__(self)
         self.app_layer = app_layer
 
-        self.title_font = tkfont.Font(family='Helvetica', size=18, weight="bold", slant="italic")
+        self.title_font = tkfont.Font(family='Arial', size=24, weight="bold")
 
         container = tk.Frame(self)
         container.pack(side="top", fill="both", expand=True)
