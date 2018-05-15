@@ -298,8 +298,8 @@ class DataLinkLayer:
             raise cls.BrokenFrameError('Unexpected f_type: {}'.format(frame))
 
         if f_type == cls.frame_types['INF']:
-            data_l = int.from_bytes(cls._decipher_byte(frame[2:4]), 'big')
-            data = b''.join([cls._decipher_byte(frame[idx:idx+2]) for idx in range(4, 4+data_l*2, 2)])
+            data_l = int.from_bytes(cls._decipher_bytes(frame[2:4]), 'big')
+            data = b''.join([cls._decipher_bytes(frame[idx:idx+2]) for idx in range(4, 4+data_l*2, 2)])
         else:
             data = None
         if frame[-1:] != cls.FD:
@@ -315,30 +315,26 @@ class DataLinkLayer:
         return b''.join(cls._hamming_cipher(x).to_bytes(1, 'big') for x in [left, right])
 
     @classmethod
-    def _decipher_byte(cls, bytes_s):
-        left, right = bytes_s[0], bytes_s[1]
-        if left > 127 or right > 127 or \
-                cls._reminder(left) != 0 or cls._reminder(right) != 0:
-            raise cls.BrokenFrameError('One byte of data is corrupted')
-        left, right = left // 8, right // 8  # 8 == int('0001000', 2)
-        return (left*16+right).to_bytes(1, 'big')
-
-    @classmethod
     def _decipher_bytes(cls, bytes_s):
         left, right = bytes_s[0], bytes_s[1]
         if left > 127 or right > 127 or \
                 cls._detect_errors(left) != 0 or cls._detect_errors(right) != 0:
             raise cls.BrokenFrameError('One byte of data is corrupted')
-        left, right = left // 8, right // 8  # 8 == int('0001000', 2)
-        return (left * 16 + right).to_bytes(1, 'big')
+        left_decode, right_decode = cls._decipher_hamming(left), cls._decipher_hamming(right)
+        return (left_decode * 16 + right_decode).to_bytes(1, 'big')
 
     @classmethod
-    def _detect_errors(cls, input_seq):
+    def _deform_seq(cls, input_seq):
         c = dict([(7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0)])
         mask = 0b0000001
         for i in range(1, 8):
             c[i] = input_seq & mask
             input_seq >>= 1
+        return c
+
+    @classmethod
+    def _detect_errors(cls, input_seq):
+        c = cls._deform_seq(input_seq)
         h1 = c[1] ^ c[3] ^ c[5] ^ c[7]
         h2 = (c[2] ^ c[3] ^ c[6] ^ c[7]) << 1
         h3 = (c[4] ^ c[5] ^ c[6] ^ c[7]) << 2
@@ -346,8 +342,22 @@ class DataLinkLayer:
         print("h2: " + "{0:b}".format(h2))
         print("h3: " + "{0:b}".format(h3))
         print("h: " + "{0:b}".format(h1 + h2 + h3))
-        #print("".join([str(i) + ": " + "{0:b}".format(c[i]) + "\n" for i in range(1, 8)]))
         return h1 + h2 + h3
+
+    @classmethod
+    def _decipher_hamming(cls, input_seq):
+        c = cls._deform_seq(input_seq)
+        v1 = c[3]
+        v2 = c[5] << 1
+        v3 = c[6] << 2
+        v4 = c[7] << 3
+        print("v1: " + "{0:b}".format(v1))
+        print("v2: " + "{0:b}".format(v2))
+        print("v3: " + "{0:b}".format(v3))
+        print("v4: " + "{0:b}".format(v4))
+        print("v: " + "{0:b}".format(v1 + v2 + v3 + v4))
+        return v1 + v2 + v3 + v4
+
 
     @classmethod
     def _hamming_cipher(cls, input_seq):
