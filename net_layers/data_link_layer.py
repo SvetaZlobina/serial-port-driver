@@ -330,62 +330,135 @@ class DataLinkLayer:
             raise cls.BrokenFrameError("Frame doesn't end with FD byte: {}".format(frame))
         return f_type, data
 
+    # @classmethod
+    # def _cipher_byte(cls, byte):
+    #     # byte as integer in range 0-255
+    #     if type(byte) is bytes:
+    #         byte = byte[0]
+    #     left, right = divmod(byte, 16)  # 16 == int('00010000', base=2)
+    #     return b''.join(cls._cycle_cipher(x).to_bytes(1, 'big') for x in [left, right])
+
+    # @classmethod
+    # def _decipher_byte(cls, bytes_s):
+    #     left, right = bytes_s[0], bytes_s[1]
+    #     if left > 127 or right > 127 or \
+    #             cls._reminder(left) != 0 or cls._reminder(right) != 0:
+    #         raise cls.BrokenFrameError('One byte of data is corrupted')
+    #     left, right = left // 8, right // 8  # 8 == int('0001000', 2)
+    #     return (left*16+right).to_bytes(1, 'big')
+    #
+    # @classmethod
+    # def _cycle_cipher(cls, m):
+    #     """
+    #     !!! Напрямую в коде нигде не вызывается
+    #     Функция циклического кодирования [7,4].
+    #     :param m: целое число в диапазоне от 0 до 15 включительно
+    #     :return: целое число в диапазоне от 0 до 127 включительно
+    #     """
+    #     xm = m * 8  # Сдвиг влево
+    #     p = cls._reminder(xm)  # Остаток от деления
+    #     return xm + p
+    #
+    # @classmethod
+    # def _reminder(cls, x, y='1011'):
+    #     """
+    #     Вычисление "остатка" для алгоритма циклического кодирования
+    #     :param x: Данные для кодирования. Целое число от 0 до 127 включительно
+    #     :param y: Образующий полином
+    #     :return: "Остаток" от деления x на y в формате целого числа
+    #     """
+    #     if x == 0:
+    #         return 0
+    #
+    #     x = cls._int_to_bin(x, 7)
+    #
+    #     L = len(y)
+    #     to_add = L  # Индекс цифры в bin_x которое добавляем к остатку для последующего деления
+    #
+    #     a = x[:L]  # Сначала берём первые l чисел
+    #     rem = int(a, 2) ^ int(y, 2)  # ^ - обозначение операции XOR - сложения по модулю 2
+    #
+    #     while True:
+    #         a = bin(rem)[2:]
+    #         while len(a) < L:  # Добавляем цифры из bin_x к делимому, пока его длина не станет равной длине делителя
+    #             if to_add >= len(x):
+    #                 return int(a, 2)
+    #             a = a + x[to_add]
+    #             to_add += 1
+    #         rem = int(a, 2) ^ int(y, 2)
+
     @classmethod
     def _cipher_byte(cls, byte):
         # byte as integer in range 0-255
         if type(byte) is bytes:
             byte = byte[0]
         left, right = divmod(byte, 16)  # 16 == int('00010000', base=2)
-        return b''.join(cls._cycle_cipher(x).to_bytes(1, 'big') for x in [left, right])
+        return b''.join(cls._hamming_cipher(x).to_bytes(1, 'big') for x in [left, right])
 
     @classmethod
     def _decipher_byte(cls, bytes_s):
         left, right = bytes_s[0], bytes_s[1]
         if left > 127 or right > 127 or \
-                cls._reminder(left) != 0 or cls._reminder(right) != 0:
+                        cls._detect_errors(left) != 0 or cls._detect_errors(right) != 0:
             raise cls.BrokenFrameError('One byte of data is corrupted')
-        left, right = left // 8, right // 8  # 8 == int('0001000', 2)
-        return (left*16+right).to_bytes(1, 'big')
+        left_decode, right_decode = cls._decipher_hamming(left), cls._decipher_hamming(right)
+        return (left_decode * 16 + right_decode).to_bytes(1, 'big')
 
     @classmethod
-    def _cycle_cipher(cls, m):
+    def _deform_seq(cls, input_seq):
+        c = dict([(7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0)])
+        mask = 0b0000001
+        for i in range(1, 8):
+            c[i] = input_seq & mask
+            input_seq >>= 1
+        return c
+
+    @classmethod
+    def _detect_errors(cls, input_seq):
+        c = cls._deform_seq(input_seq)
+        h1 = c[1] ^ c[3] ^ c[5] ^ c[7]
+        h2 = (c[2] ^ c[3] ^ c[6] ^ c[7]) << 1
+        h3 = (c[4] ^ c[5] ^ c[6] ^ c[7]) << 2
+        return h1 + h2 + h3
+
+    @classmethod
+    def _decipher_hamming(cls, input_seq):
+        c = cls._deform_seq(input_seq)
+        v1 = c[3]
+        v2 = c[5] << 1
+        v3 = c[6] << 2
+        v4 = c[7] << 3
+        return v1 + v2 + v3 + v4
+
+    @classmethod
+    def _hamming_cipher(cls, input_seq):
         """
-        !!! Напрямую в коде нигде не вызывается
-        Функция циклического кодирования [7,4].
-        :param m: целое число в диапазоне от 0 до 15 включительно
+        Функция кодирования кодом Хэмминга с длиной слова 4.
+        :param input_seq: целое число в диапазоне от 0 до 15 включительно
         :return: целое число в диапазоне от 0 до 127 включительно
         """
-        xm = m * 8  # Сдвиг влево
-        p = cls._reminder(xm)  # Остаток от деления
-        return xm + p
+        mask = 0b0001
+        c = dict([(7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0)])
 
-    @classmethod
-    def _reminder(cls, x, y='1011'):
-        """
-        Вычисление "остатка" для алгоритма циклического кодирования
-        :param x: Данные для кодирования. Целое число от 0 до 127 включительно
-        :param y: Образующий полином
-        :return: "Остаток" от деления x на y в формате целого числа
-        """
-        if x == 0:
-            return 0
+        c[3] = input_seq & mask
+        mask <<= 1
+        c[5] = (input_seq & mask) >> 1
+        mask <<= 1
+        c[6] = (input_seq & mask) >> 2
+        mask <<= 1
+        c[7] = (input_seq & mask) >> 3
 
-        x = cls._int_to_bin(x, 7)
+        c[1] = c[3] ^ c[5] ^ c[7]
+        c[2] = (c[3] ^ c[6] ^ c[7]) << 1
+        c[4] = (c[5] ^ c[6] ^ c[7]) << 3
 
-        L = len(y)
-        to_add = L  # Индекс цифры в bin_x которое добавляем к остатку для последующего деления
+        c[3] <<= 2
+        c[5] <<= 4
+        c[6] <<= 5
+        c[7] <<= 6
+        # print("".join([str(i) + ": " + "{0:b}".format(c[i]) + "\n" for i in range(1, 8)]))
 
-        a = x[:L]  # Сначала берём первые l чисел
-        rem = int(a, 2) ^ int(y, 2)  # ^ - обозначение операции XOR - сложения по модулю 2
-
-        while True:
-            a = bin(rem)[2:]
-            while len(a) < L:  # Добавляем цифры из bin_x к делимому, пока его длина не станет равной длине делителя
-                if to_add >= len(x):
-                    return int(a, 2)
-                a = a + x[to_add]
-                to_add += 1
-            rem = int(a, 2) ^ int(y, 2)
+        return c[7] + c[6] + c[5] + c[4] + c[3] + c[2] + c[1]
 
     @classmethod
     def _byte_staff(cls, x):
